@@ -1,0 +1,223 @@
+name: ukify test
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Kernel branch to build'
+        required: true
+        default: 'sm8150/6.17'
+      patch_suffix:
+        description: 'Suffix added to artifact names and kernel localversion when patches are applied (e.g., -UFS-patch)'
+        required: false
+        default: ''
+      cmdline:
+        description: 'Kernel command line (root=... will be duplicated with "2" appended for second EFI)'
+        required: false
+        default: 'root=PARTLABEL=linux ro fw_devlink=permissive'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository (for extra.config and patches)
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            build-essential flex bison bc kmod cpio \
+            libssl-dev libelf-dev git \
+            systemd systemd-boot-efi systemd-ukify dpkg-dev
+
+      - name: Cache kernel source
+        uses: actions/cache@v4
+        with:
+          path: linux
+          key: kernel-${{ github.event.inputs.branch }}
+          restore-keys: |
+            kernel-${{ github.event.inputs.branch }}-
+
+      - name: Build kernel with modular script
+        id: build
+        run: |
+          set -euxo pipefail
+
+          # Hard-coded base control file (Package and Version will be updated later)
+          cat > control.base << 'EOF'
+          Package: xiaomi-nabu-linux-6.14
+          Version: 6.14.11-nabu-tmm+
+          Architecture: arm64
+          Maintainer: TheMojoMan <themojoman@gmx.net>
+          Section: kernel
+          Description: Kernel and modules for Xiaomi Pad 5 (nabu)
+          EOF
+
+          # ==================== FUNCTIONS ====================
+          pull_kernel() {
+              BRANCH="${{ github.event.inputs.branch }}"
+              if [ -d "linux/.git" ]; then
+                  echo "Updating existing kernel source..."
+                  cd linux
+                  git fetch origin
+                  git checkout "$BRANCH"
+                  git reset --hard origin/"$BRANCH"
+                  cd ..
+              else
+                  echo "Cloning kernel source..."
+                  git clone --branch="$BRANCH" https://gitlab.com/sm8150-mainline/linux.git linux
+              fi
+          }
+
+          apply_patches() {
+              cd linux
+              # Special handling: comment out raphael dtb line using sed
+              echo "Applying sed fix: comment out sm8150-xiaomi-raphael.dtb"
+              sed -i '/sm8150-xiaomi-raphael.dtb/s/^/# /' arch/arm64/boot/dts/qcom/Makefile
+              
+              PATCH_DIR="$PWD/patches"
+              if [ -d "$PATCH_DIR" ] && [ -n "$(ls -A "$PATCH_DIR" 2>/dev/null)" ]; then
+                echo "Applying patches from $PATCH_DIR..."
+                #cd linux
+                for patch in "$PATCH_DIR"/*.patch; do
+                    echo "Applying $patch"
+                    patch -p1 --no-backup-if-mismatch -r - < "$patch" || {
+                        echo "Patch $patch failed to apply. Aborting."
+                        exit 1
+                    }
+                done
+                #cd ..
+                patches_applied=true
+              else
+                  echo "No patches folder or empty – skipping patch application."
+                  patches_applied=false
+              fi
+              echo "patches_applied=${patches_applied}" >> $GITHUB_ENV
+              cd ..
+          }
+
+          build_kernel() {
+              cd linux
+              export ARCH=arm64
+              unset CROSS_COMPILE
+
+              # Prepare extra.config with optional suffix appended to LOCALVERSION
+              cp "$OLDPWD/extra.config" .config.extra
+              if [ "${patches_applied}" = "true" ]; then
+                  SUFFIX="${{ github.event.inputs.patch_suffix }}"
+                  # Append suffix to existing CONFIG_LOCALVERSION value
+                  # Original extra.config has CONFIG_LOCALVERSION="-xiaomi-nabu-tmm"
+                  # We change it to "-xiaomi-nabu-tmm$SUFFIX"
+                  sed -i "s/CONFIG_LOCALVERSION=\"-xiaomi-nabu-tmm\"/CONFIG_LOCALVERSION=\"-xiaomi-nabu-tmm$SUFFIX\"/" .config.extra
+              fi
+
+              make -j$(nproc) defconfig sm8150.config
+              scripts/kconfig/merge_config.sh .config .config.extra
+              make olddefconfig
+              make -j$(nproc)
+
+              kernel_version_full="$(make kernelrelease -s)"
+              # Extract numeric base version (e.g., 6.14.11)
+              base_version=$(echo "$kernel_version_full" | grep -oP '^\d+\.\d+\.\d+')
+              short_version="${base_version%.*}"   # e.g., 6.14
+
+              # Determine artifact suffix (only if patches applied)
+              if [ "${patches_applied}" = "true" ]; then
+                  artifact_suffix="${{ github.event.inputs.patch_suffix }}"
+              else
+                  artifact_suffix=""
+              fi
+
+              echo "kernel_version_full=${kernel_version_full}" >> $GITHUB_ENV
+              echo "base_version=${base_version}" >> $GITHUB_ENV
+              echo "short_version=${short_version}" >> $GITHUB_ENV
+              echo "artifact_suffix=${artifact_suffix}" >> $GITHUB_ENV
+              cd ..
+          }
+
+          build_debs() {
+              # Artifact name for .deb: xiaomi-nabu-linux-${base_version}${artifact_suffix}.deb
+              PKG_DIR="xiaomi-nabu-linux-${base_version}${artifact_suffix}"
+              rm -rf "$PKG_DIR"
+              mkdir -p "$PKG_DIR/boot"
+              mkdir -p "$PKG_DIR/DEBIAN"
+
+              # control: Version = full kernel version (with -xiaomi-nabu-tmm and suffix)
+              # Package name = xiaomi-nabu-linux-${short_version}
+              sed "s/Version:.*/Version: ${kernel_version_full}/" control.base > "$PKG_DIR/DEBIAN/control"
+              sed -i "s/Package:.*/Package: xiaomi-nabu-linux-${short_version}/" "$PKG_DIR/DEBIAN/control"
+
+              cp linux/arch/arm64/boot/Image.gz "$PKG_DIR/boot/vmlinuz-${kernel_version_full}"
+              cp linux/arch/arm64/boot/dts/qcom/sm8150-xiaomi-nabu.dtb "$PKG_DIR/boot/dtb-${kernel_version_full}"
+
+              make -C linux -j$(nproc) INSTALL_MOD_PATH="$PWD/$PKG_DIR" modules_install
+              rm -f "$PKG_DIR/lib/modules/${kernel_version_full}/build"
+
+              dpkg-deb --build --root-owner-group "$PKG_DIR"
+              # dpkg-deb outputs PKG_DIR.deb, which is already named correctly
+          }
+
+          build_uki() {
+              CMDLINE_BASE="${{ github.event.inputs.cmdline }}"
+              # Extract root identifier for naming (e.g., "linux" from "PARTLABEL=linux")
+              ROOT_ID=$(echo "$CMDLINE_BASE" | grep -oP 'root=\S+' | sed -E 's/root=(.*=)?//')
+              if [ -z "$ROOT_ID" ]; then
+                  ROOT_ID="root"
+              fi
+              # Second cmdline: append "2" to the root identifier value
+              CMDLINE2="$(echo "$CMDLINE_BASE" | sed -E 's/(root=[^[:space:]]+)/\12/')"
+
+              PKG_DIR="xiaomi-nabu-linux-${base_version}${artifact_suffix}"
+              # EFI names: ${base_version}${artifact_suffix}-${ROOT_ID}.efi
+              ukify build \
+                  --linux="$PKG_DIR/boot/vmlinuz-${kernel_version_full}" \
+                  --devicetree="$PKG_DIR/boot/dtb-${kernel_version_full}" \
+                  --cmdline="$CMDLINE_BASE" \
+                  -o "${base_version}${artifact_suffix}-${ROOT_ID}.efi"
+
+              ukify build \
+                  --linux="$PKG_DIR/boot/vmlinuz-${kernel_version_full}" \
+                  --devicetree="$PKG_DIR/boot/dtb-${kernel_version_full}" \
+                  --cmdline="$CMDLINE2" \
+                  -o "${base_version}${artifact_suffix}-${ROOT_ID}2.efi"
+
+              echo "ROOT_ID=${ROOT_ID}" >> $GITHUB_ENV
+          }
+
+          # ==================== EXECUTION ====================
+          BRANCH="${{ github.event.inputs.branch }}"
+          #pull_kernel
+          #apply_patches
+          #build_kernel
+          #build_debs
+          #build_uki
+
+          ukify --version
+          # Create uncompressed tar archive: xiaomi-nabu-linux-${base_version}${artifact_suffix}.tar
+          #tar -cf "xiaomi-nabu-linux-${base_version}${artifact_suffix}.tar" "xiaomi-nabu-linux-${base_version}${artifact_suffix}"
+
+      - name: Upload .deb package
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaomi-nabu-linux-deb
+          path: xiaomi-nabu-linux-*.deb
+
+      - name: Upload primary UKI
+        uses: actions/upload-artifact@v4
+        with:
+          name: uki-${{ env.ROOT_ID }}
+          path: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}.efi
+
+      - name: Upload secondary UKI
+        uses: actions/upload-artifact@v4
+        with:
+          name: uki-${{ env.ROOT_ID }}2
+          path: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}2.efi
+
+      - name: Upload tar of versioned folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaomi-nabu-linux-folder-tar
+          path: xiaomi-nabu-linux-*.tar
