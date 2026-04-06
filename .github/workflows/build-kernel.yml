@@ -72,10 +72,15 @@ jobs:
           }
 
           apply_patches() {
+              cd linux
+              # Special handling: comment out raphael dtb line using sed
+              echo "Applying sed fix: comment out sm8150-xiaomi-raphael.dtb"
+              sed -i '/sm8150-xiaomi-raphael.dtb/s/^/# /' arch/arm64/boot/dts/qcom/Makefile
+              
               PATCH_DIR="$PWD/patches"
               if [ -d "$PATCH_DIR" ] && [ -n "$(ls -A "$PATCH_DIR" 2>/dev/null)" ]; then
                 echo "Applying patches from $PATCH_DIR..."
-                cd linux
+                #cd linux
                 for patch in "$PATCH_DIR"/*.patch; do
                     echo "Applying $patch"
                     patch -p1 --no-backup-if-mismatch -r - < "$patch" || {
@@ -83,13 +88,14 @@ jobs:
                         exit 1
                     }
                 done
-                cd ..
+                #cd ..
                 patches_applied=true
               else
                   echo "No patches folder or empty – skipping patch application."
                   patches_applied=false
               fi
               echo "patches_applied=${patches_applied}" >> $GITHUB_ENV
+              cd ..
           }
 
           build_kernel() {
