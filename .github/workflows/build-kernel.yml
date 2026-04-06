@@ -30,7 +30,7 @@ jobs:
           sudo apt install -y \
             build-essential flex bison bc kmod cpio \
             libssl-dev libelf-dev git \
-            systemd systemd-boot-efi dpkg-dev
+            systemd systemd-boot-efi systemd-ukify dpkg-dev
 
       - name: Cache kernel source
         uses: actions/cache@v4
