@@ -74,19 +74,17 @@ jobs:
           apply_patches() {
               PATCH_DIR="$PWD/patches"
               if [ -d "$PATCH_DIR" ] && [ -n "$(ls -A "$PATCH_DIR" 2>/dev/null)" ]; then
-                  echo "Applying patches from $PATCH_DIR..."
-                  cd linux
-                  git config user.email "github-actions@github.com"
-                  git config user.name "GitHub Actions"
-                  for patch in "$PATCH_DIR"/*.patch; do
-                      echo "Applying $patch"
-                      git am --whitespace=fix "$patch" || {
-                          echo "Patch $patch failed to apply. Aborting."
-                          exit 1
-                      }
-                  done
-                  cd ..
-                  patches_applied=true
+                echo "Applying patches from $PATCH_DIR..."
+                cd linux
+                for patch in "$PATCH_DIR"/*.patch; do
+                    echo "Applying $patch"
+                    patch -p1 --no-backup-if-mismatch -r - < "$patch" || {
+                        echo "Patch $patch failed to apply. Aborting."
+                        exit 1
+                    }
+                done
+                cd ..
+                patches_applied=true
               else
                   echo "No patches folder or empty – skipping patch application."
                   patches_applied=false
