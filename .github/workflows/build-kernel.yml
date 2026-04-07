@@ -74,7 +74,7 @@ jobs:
           apply_patches() {
               # Special handling: comment out raphael dtb line using sed
               echo "Applying sed fix: comment out sm8150-xiaomi-raphael.dtb"
-              sed -i '/sm8150-xiaomi-raphael.dtb/s/^/# /' arch/arm64/boot/dts/qcom/Makefile
+              sed -i '/sm8150-xiaomi-raphael.dtb/s/^/# /' linux/arch/arm64/boot/dts/qcom/Makefile
               
               PATCH_DIR="$PWD/patches"
               cd linux
