@@ -234,7 +234,7 @@ jobs:
               sed -i "s/Package:.*/Package: xiaomi-nabu-linux-${short_version}/" "$PKG_DIR/DEBIAN/control"
 
               # postinst
-              postinst > "$PKG_DIR/DEBIAN/postinst"
+              cp postinst "$PKG_DIR/DEBIAN/postinst"
  
               cp linux/arch/arm64/boot/Image.gz "$PKG_DIR/boot/vmlinuz-${kernel_version_full}"
               cp linux/arch/arm64/boot/dts/qcom/sm8150-xiaomi-nabu.dtb "$PKG_DIR/boot/dtb-${kernel_version_full}"
