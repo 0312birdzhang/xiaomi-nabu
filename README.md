@@ -2,7 +2,7 @@
 Linux disk images, kernels and scripts for the Xiaomi Pad 5 tablet (codename: nabu).
 
 # NEWS
- - 2025.04.08: Expect Ubuntu 26.04 to drop here in the comming days ... (still testing & Install instructions need major overhaul)
+ - 2026.04.08: Expect Ubuntu 26.04 to drop here in the comming days ... (still testing & Install instructions need major overhaul)
  - 2025.08.24: Updated image to kernel 6.14.11 (6.16 does not boot on some devices, yet):
    - USB audio and MIDI works now out-of-the-box
    - Change slot with `sudo qbootctl -s a` or `sudo qbootctl -s b` 
