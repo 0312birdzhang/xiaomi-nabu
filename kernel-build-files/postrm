@@ -1,0 +1,59 @@
+#!/bin/bash
+set -e
+
+# 1. Only run during actual removal, not during upgrades
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+
+    # 2. Determine Kernel Version
+    # During removal, we fallback to uname -r if $2 is not set
+    KVER="$2"
+    if [ -z "$KVER" ]; then
+        KVER=$(uname -r)
+    fi
+
+    # 3. Dynamically determine Root Partition Label
+    ROOT_LABEL=$(lsblk -no PARTLABEL $(findmnt -no SOURCE /) 2>/dev/null)
+    
+    # Fallback to 'linux' if label detection fails during removal
+    if [ -z "$ROOT_LABEL" ]; then
+        ROOT_LABEL="linux"
+    fi
+
+    # 4. Format the EFI filename to match the one created in postinst
+    CLEAN_KVER="${KVER//-xiaomi-nabu-tmm/}"
+    TARGET_EFI="${CLEAN_KVER}-${ROOT_LABEL}.efi"
+
+    # 5. Attempt to mount ESP
+    ESP_PART="/dev/disk/by-partlabel/esp"
+    MNT_TMP=$(mktemp -d)
+    DEST_FILE="$MNT_TMP/EFI/ubuntu/$TARGET_EFI"
+    MOUNT_SUCCESS=false
+
+    if [ -b "$ESP_PART" ]; then
+        for i in 1 2 3; do
+            if mount "$ESP_PART" "$MNT_TMP" 2>/dev/null; then
+                MOUNT_SUCCESS=true
+                break
+            fi
+            sleep 1
+        done
+    fi
+
+    # 6. Delete the file if ESP is mounted
+    if [ "$MOUNT_SUCCESS" = true ]; then
+        if [ -f "$DEST_FILE" ]; then
+            echo "Post-remove: Deleting $TARGET_EFI from ESP..."
+            rm -f "$DEST_FILE"
+        else
+            echo "Post-remove: $TARGET_EFI not found on ESP, nothing to do."
+        fi
+        umount "$MNT_TMP"
+    else
+        echo "Post-remove: ESP not available. Could not delete EFI file (ignored)."
+    fi
+
+    # Cleanup temp directory
+    rm -rf "$MNT_TMP"
+fi
+
+exit 0
