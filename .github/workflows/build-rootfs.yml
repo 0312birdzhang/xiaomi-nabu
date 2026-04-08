@@ -11,13 +11,15 @@ on:
         description: 'Additional packages to install'
         required: false
         default: ''
-
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Build Dependencies
         run: |
@@ -110,7 +112,7 @@ jobs:
           echo "img_name=$FILENAME" >> $GITHUB_OUTPUT
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.compress.outputs.img_name }}
           path: ${{ steps.compress.outputs.img_name }}
