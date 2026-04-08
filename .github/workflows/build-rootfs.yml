@@ -1,0 +1,117 @@
+name: Build Ubuntu image for Xiaomi Pad 5 (nabu)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Ubuntu Version'
+        required: true
+        default: '26.04'
+      extra_packages:
+        description: 'Additional packages to install'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget xz-utils coreutils curl ext4utils
+
+      - name: Create RootFS Image
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          EXTRA_PACKAGES="${{ github.event.inputs.extra_packages }}"
+          
+          # Create and format image
+          truncate -s 6G rootfs.img
+          mkfs.ext4 rootfs.img
+          mkdir -p rootdir
+          sudo mount -o loop rootfs.img rootdir
+
+          # Download and Extract Ubuntu Base
+          if [ "$VERSION" = "26.04" ]; then
+            URL="https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/beta/ubuntu-base-26.04-beta-base-arm64.tar.gz"
+          else
+            URL="https://cdimage.ubuntu.com/ubuntu-base/releases/$VERSION/release/ubuntu-base-$VERSION-base-arm64.tar.gz"
+          fi
+          
+          wget -q $URL -O ubuntu-base.tar.gz
+          sudo tar xzvf ubuntu-base.tar.gz -C rootdir
+
+          # Setup Config Files
+          sudo mkdir -p rootdir/var/lib/gdm3/.config
+          sudo mkdir -p rootdir/etc/skel/.config/dconf
+          sudo cp root-setup-files/monitors.xml rootdir/var/lib/gdm3/.config/monitors.xml
+          sudo cp root-setup-files/monitors.xml rootdir/etc/skel/.config/monitors.xml
+          sudo cp root-setup-files/xiaomi-nabu.sources rootdir/etc/apt/sources.list.d/xiaomi-nabu.sources
+          sudo cp root-setup-files/themojoman.gpg rootdir/etc/apt/keyrings/themojoman.gpg
+          sudo cp root-setup-files/console-setup rootdir/etc/default/console-setup
+          sudo cp root-setup-files/user rootdir/etc/skel/.config/dconf/
+          sudo cp root-setup-files/bash_aliases rootdir/etc/skel/.bash_aliases
+
+          # Bind Mounts
+          sudo mount --bind /dev rootdir/dev
+          sudo mount --bind /dev/pts rootdir/dev/pts
+          sudo mount --bind /proc rootdir/proc
+          sudo mount --bind /sys rootdir/sys
+
+          # Network and Hostname
+          echo "nameserver 1.1.1.1" | sudo tee rootdir/etc/resolv.conf
+          echo "nabu" | sudo tee rootdir/etc/hostname
+          echo -e "127.0.0.1 localhost\n127.0.1.1 nabu" | sudo tee rootdir/etc/hosts
+
+          # Chroot execution
+          sudo chroot rootdir /bin/bash <<EOF
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH
+          export DEBIAN_FRONTEND=noninteractive
+          apt update
+          apt upgrade -y
+          apt install -y bash-completion sudo ssh nano micro alsa-ucm-conf
+          apt install -y rmtfs protection-domain-mapper tqftpserv
+          apt install -y systemd-boot-efi systemd-ukify 
+          apt install -y xiaomi-nabu-alsa xiaomi-nabu-firmware xiaomi-nabu-linux-6.14 xiaomi-nabu-linux-6.17
+          apt install -y $EXTRA_PACKAGES
+          apt --fix-broken install -y
+
+          sed -i '/ConditionKernelVersion/d' /lib/systemd/system/pd-mapper.service
+
+          apt install -y ubuntu-desktop
+          apt --fix-broken install -y
+          apt clean
+          systemctl enable bluetooth
+          EOF
+
+          # fstab (keeping your commented lines)
+          echo "PARTLABEL=linux / ext4 errors=remount-ro,x-systemd.growfs 0 1
+          #PARTLABEL=esp /boot/efi vfat umask=0077 0 1
+          #PARTLABEL=data /media/data ext4 defaults 0 2" | sudo tee rootdir/etc/fstab
+
+          # Cleanup
+          sudo umount rootdir/sys
+          sudo umount rootdir/proc
+          sudo umount rootdir/dev/pts
+          sudo umount rootdir/dev
+          sudo umount rootdir
+
+      - name: Compress Image
+        id: compress
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          FILENAME="ubuntu-${VERSION}-xiaomi-nabu.img.xz"
+          xz -6 rootfs.img
+          mv rootfs.img.xz "$FILENAME"
+          echo "img_name=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.compress.outputs.img_name }}
+          path: ${{ steps.compress.outputs.img_name }}
+          if-no-files-found: error
