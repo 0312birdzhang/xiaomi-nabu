@@ -16,13 +16,16 @@ on:
         required: false
         default: 'root=PARTLABEL=linux ro fw_devlink=permissive'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository (for extra.config and patches)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install dependencies
         run: |
@@ -33,7 +36,7 @@ jobs:
             systemd systemd-boot-efi systemd-ukify dpkg-dev
 
       - name: Cache kernel source
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: linux
           key: kernel-${{ github.event.inputs.branch }}
@@ -187,25 +190,25 @@ jobs:
           tar -cf "xiaomi-nabu-linux-${base_version}${artifact_suffix}.tar" "xiaomi-nabu-linux-${base_version}${artifact_suffix}"
 
       - name: Upload .deb package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: xiaomi-nabu-linux-${{ env.base_version }}${{ env.artifact_suffix }}.deb
           path: xiaomi-nabu-linux-*.deb
 
       - name: Upload primary UKI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}.efi
           path: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}.efi
 
       - name: Upload secondary UKI
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}2.efi
           path: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}2.efi
 
       - name: Upload tar of versioned folder
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: xiaomi-nabu-linux-${{ env.base_version }}${{ env.artifact_suffix }}.tar
           path: xiaomi-nabu-linux-*.tar
