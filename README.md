@@ -14,7 +14,7 @@ Linux disk images, kernels and scripts for the Xiaomi Pad 5 tablet (codename: na
 # Ubuntu Linux on the Xiaomi Pad 5 (nabu)
 ![Ubuntu Linux on the Xiaomi Pad 5 (nabu)](ubuntu-nabu.png)
 ## THANKS
-First, I would like to thank the following people (in no particular order) for their excellent work in developing the Linux kernel for the Xiaomi Pad 6. Without them this would all not be possible:
+First, I would like to thank the following people (in no particular order) for their excellent work in developing the Linux kernel for the Xiaomi Pad 5. Without them this would all not be possible:
  - Alexandru Marc Serdeliuc <https://github.com/serdeliuk>
  - map220v <https://github.com/map220v>
  - maverickjb <https://github.com/maverickjb>
