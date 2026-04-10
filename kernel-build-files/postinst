@@ -3,8 +3,15 @@ set -e
 
 # 1. Determine Kernel Version
 KVER="$2"
+
 if [ -z "$KVER" ]; then
-    KVER=$(uname -r)
+    if [ -n "$DPKG_MAINTSCRIPT_VERSION" ]; then
+        # Pulls exactly what is written in the 'Version:' field of the .deb
+        KVER="$DPKG_MAINTSCRIPT_VERSION"
+    else
+        # Fallback
+        KVER=$(uname -r)
+    fi
 fi
 
 # 2. Dynamically determine Root Partition Label
