@@ -69,7 +69,8 @@ if [ "$MOUNT_SUCCESS" = true ]; then
     echo "Success: $OUTPUT_EFI copied to ESP."
     umount "$MNT_TMP"
 else
-    echo "Notice: ESP not available or mount failed. Skipping copy phase."
+    echo "Notice: ESP not available or mount failed. Copied .efi file to /boot/"
+    cp "$OUTPUT_EFI" /boot/
 fi
 
 # 7. Cleanup
