@@ -98,6 +98,9 @@ jobs:
           #PARTLABEL=esp /boot/efi vfat umask=0077 0 1
           #PARTLABEL=data /media/data ext4 defaults 0 2" | sudo tee rootdir/etc/fstab
 
+          # Copy EFI files out of the chroot before unmounting
+          sudo cp rootdir/boot/*.efi . || echo "No EFI files found"
+
           # Cleanup
           sudo umount rootdir/sys
           sudo umount rootdir/proc
@@ -114,9 +117,16 @@ jobs:
           mv rootfs.img.xz "$FILENAME"
           echo "img_name=$FILENAME" >> $GITHUB_OUTPUT
 
-      - name: Upload Artifact
+      - name: Upload RootFS image
         uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.compress.outputs.img_name }}
           path: ${{ steps.compress.outputs.img_name }}
+          if-no-files-found: error
+
+      - name: Upload EFI Binaries
+        uses: actions/upload-artifact@v5
+        with:
+          name: efi-files
+          path: ./*.efi
           if-no-files-found: error
