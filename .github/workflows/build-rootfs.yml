@@ -75,10 +75,13 @@ jobs:
           export DEBIAN_FRONTEND=noninteractive
           apt update
           apt upgrade -y
-          apt install -y bash-completion sudo ssh nano micro alsa-ucm-conf
+          apt install -y bash-completion sudo ssh nano micro curl alsa-ucm-conf
           apt install -y rmtfs protection-domain-mapper tqftpserv
           apt install -y systemd-boot-efi systemd-ukify 
           apt install -y xiaomi-nabu-alsa xiaomi-nabu-firmware xiaomi-nabu-linux-6.14 xiaomi-nabu-linux-6.17
+          apt install -y zram-config
+          sed -i '/^totalmem/ s/^/#/' /usr/bin/init-zram-swapping
+          sed -i '/^mem/ s/.*/#&\nmem=10GiB/' /usr/bin/init-zram-swapping
           apt install -y $EXTRA_PACKAGES
           apt --fix-broken install -y
 
