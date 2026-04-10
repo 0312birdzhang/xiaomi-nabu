@@ -157,34 +157,11 @@ jobs:
               dpkg-deb --build --root-owner-group "$PKG_DIR"
           }
 
-          build_uki() {
-              CMDLINE_BASE="${{ github.event.inputs.cmdline }}"
-              ROOT_ID=$(echo "$CMDLINE_BASE" | grep -oP 'root=\S+' | sed -E 's/root=(.*=)?//')
-              if [ -z "$ROOT_ID" ]; then ROOT_ID="root"; fi
-              CMDLINE2="$(echo "$CMDLINE_BASE" | sed -E 's/(root=[^[:space:]]+)/\12/')"
-
-              PKG_DIR="xiaomi-nabu-linux-${base_version}${artifact_suffix}"
-              ukify build \
-                  --linux="$PKG_DIR/boot/vmlinuz-${kernel_version_full}" \
-                  --devicetree="$PKG_DIR/boot/dtb-${kernel_version_full}" \
-                  --cmdline="$CMDLINE_BASE" \
-                  -o "${base_version}${artifact_suffix}-${ROOT_ID}.efi"
-
-              ukify build \
-                  --linux="$PKG_DIR/boot/vmlinuz-${kernel_version_full}" \
-                  --devicetree="$PKG_DIR/boot/dtb-${kernel_version_full}" \
-                  --cmdline="$CMDLINE2" \
-                  -o "${base_version}${artifact_suffix}-${ROOT_ID}2.efi"
-
-              echo "ROOT_ID=${ROOT_ID}" >> $GITHUB_ENV
-          }
-
           # ==================== EXECUTION ====================
           pull_kernel
           apply_patches
           build_kernel
           build_debs
-          build_uki
 
           # Create uncompressed tar
           tar -cf "xiaomi-nabu-linux-${base_version}${artifact_suffix}.tar" "xiaomi-nabu-linux-${base_version}${artifact_suffix}"
@@ -194,18 +171,6 @@ jobs:
         with:
           name: xiaomi-nabu-linux-${{ env.base_version }}${{ env.artifact_suffix }}.deb
           path: xiaomi-nabu-linux-*.deb
-
-      - name: Upload primary UKI
-        uses: actions/upload-artifact@v5
-        with:
-          name: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}.efi
-          path: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}.efi
-
-      - name: Upload secondary UKI
-        uses: actions/upload-artifact@v5
-        with:
-          name: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}2.efi
-          path: ${{ env.base_version }}${{ env.artifact_suffix }}-${{ env.ROOT_ID }}2.efi
 
       - name: Upload tar of versioned folder
         uses: actions/upload-artifact@v5
