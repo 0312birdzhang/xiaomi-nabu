@@ -2,18 +2,11 @@
 set -e
 
 # 1. Determine Kernel Version
-PKGNAM="xiaomi-nabu-linux-6.17"
-KVER=$(dpkg-query -W -f='${Version}' "$PKGNAM" 2>/dev/null || true)
-
-# If dpkg-query fails, look for the most recent vmlinuz in /boot
-if [ -z "$KVER" ]; then
-    KVER=$(ls -1t /boot/vmlinuz-* 2>/dev/null | head -n1 | sed 's|/boot/vmlinuz-||')
-fi
+KVER=$(dpkg-query --show --showformat='${Version}' $DPKG_MAINTSCRIPT_PACKAGE
 
 if [ -z "$KVER" ]; then
-#    echo "Error: Could not determine kernel version. /boot is empty?"
-#    exit 1
-    KVER="6.17.0-xiaomi-nabu-tmm-UFS-slowdown+"
+    echo "Error: Could not determine kernel version."
+    exit 1
 fi
 
 # 2. Dynamically determine Root Partition Label
