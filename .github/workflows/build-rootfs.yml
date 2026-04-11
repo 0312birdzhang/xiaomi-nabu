@@ -102,13 +102,11 @@ jobs:
           apt update
           apt install -y bash-completion sudo ssh nano micro curl alsa-ucm-conf
           apt install -y rmtfs protection-domain-mapper tqftpserv
-          sed -i '/ConditionKernelVersion/d' /lib/systemd/system/pd-mapper.service
           apt install -y systemd-boot-efi systemd-ukify 
-          apt install -y xiaomi-nabu-alsa xiaomi-nabu-firmware xiaomi-nabu-linux-6.14
+          apt install -y xiaomi-nabu-alsa xiaomi-nabu-firmware
+          apt install -y xiaomi-nabu-linux-6.14
           apt install -y xiaomi-nabu-linux-6.17
           apt install -y zram-config
-          sed -i '/^totalmem/ s/^/#/' /usr/bin/init-zram-swapping
-          sed -i '/^mem/ s/.*/#&\nmem=10GiB/' /usr/bin/init-zram-swapping
           apt install -y $EXTRA_PACKAGES
           apt --fix-broken install -y
           
@@ -116,6 +114,9 @@ jobs:
           apt --fix-broken install -y
           apt upgrade -y
           apt --fix-broken install -y
+          sed -i '/ConditionKernelVersion/d' /lib/systemd/system/pd-mapper.service
+          sed -i '/^totalmem/ s/^/#/' /usr/bin/init-zram-swapping
+          sed -i '/^mem/ s/.*/#&\nmem=10GiB/' /usr/bin/init-zram-swapping
           apt clean
           systemctl enable bluetooth
           EOF
