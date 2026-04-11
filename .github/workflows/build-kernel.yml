@@ -167,13 +167,13 @@ jobs:
           tar -cf "xiaomi-nabu-linux-${base_version}${artifact_suffix}.tar" "xiaomi-nabu-linux-${base_version}${artifact_suffix}"
 
       - name: Upload .deb package
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: xiaomi-nabu-linux-${{ env.base_version }}${{ env.artifact_suffix }}.deb
           path: xiaomi-nabu-linux-*.deb
 
       - name: Upload tar of versioned folder
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: xiaomi-nabu-linux-${{ env.base_version }}${{ env.artifact_suffix }}.tar
           path: xiaomi-nabu-linux-*.tar
