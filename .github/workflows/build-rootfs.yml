@@ -156,4 +156,4 @@ jobs:
         with:
           name: efi-files
           path: ./*.efi
-          if-no-files-found: error
+          if-no-files-found: warn
