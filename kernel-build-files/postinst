@@ -2,7 +2,7 @@
 set -e
 
 # 1. Determine Kernel Version
-KVER=$(dpkg-query --show --showformat='${Version}' $DPKG_MAINTSCRIPT_PACKAGE
+KVER=$(dpkg-query --show --showformat='${Version}' "$DPKG_MAINTSCRIPT_PACKAGE")
 
 if [ -z "$KVER" ]; then
     echo "Error: Could not determine kernel version."
