@@ -52,8 +52,6 @@ jobs:
           sudo mkdir -p rootdir/etc/skel/.config/dconf
           sudo cp root-setup-files/monitors.xml rootdir/var/lib/gdm3/.config/monitors.xml
           sudo cp root-setup-files/monitors.xml rootdir/etc/skel/.config/monitors.xml
-          sudo cp root-setup-files/xiaomi-nabu.sources rootdir/etc/apt/sources.list.d/xiaomi-nabu.sources
-          sudo cp root-setup-files/themojoman.gpg rootdir/etc/apt/keyrings/themojoman.gpg
           sudo cp root-setup-files/console-setup rootdir/etc/default/console-setup
           sudo cp root-setup-files/user rootdir/etc/skel/.config/dconf/
           sudo cp root-setup-files/bash_aliases rootdir/etc/skel/.bash_aliases
@@ -73,10 +71,38 @@ jobs:
           sudo chroot rootdir /bin/bash <<EOF
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH
           export DEBIAN_FRONTEND=noninteractive
+          export LANG=C.UTF-8
+          export LC_ALL=C.UTF-8
+          
+          # 1. Update the lists
+          apt update || true 
+          
+          # 2. Install certificates and gnupg first
+          apt install -y locales ca-certificates gnupg
+          
+          # 3. Generate en_US.UTF-8
+          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+          locale-gen en_US.UTF-8
+          update-locale LANG=en_US.UTF-8
+          
+          # 4. Switch the current session to the new locale
+          export LANG=en_US.UTF-8
+          unset LC_ALL  # Allow LC_ALL to be determined by LANG
+          EOF
+          
+          sudo cp root-setup-files/xiaomi-nabu.sources rootdir/etc/apt/sources.list.d/xiaomi-nabu.sources
+          sudo cp root-setup-files/themojoman.gpg rootdir/etc/apt/keyrings/themojoman.gpg
+          
+          sudo chroot rootdir /bin/bash <<EOF
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH
+          export DEBIAN_FRONTEND=noninteractive
+          export LANG=en_US.UTF-8
+          unset LC_ALL
+          
           apt update
-          apt upgrade -y
           apt install -y bash-completion sudo ssh nano micro curl alsa-ucm-conf
           apt install -y rmtfs protection-domain-mapper tqftpserv
+          sed -i '/ConditionKernelVersion/d' /lib/systemd/system/pd-mapper.service
           apt install -y systemd-boot-efi systemd-ukify 
           apt install -y xiaomi-nabu-alsa xiaomi-nabu-firmware xiaomi-nabu-linux-6.14 xiaomi-nabu-linux-6.17
           apt install -y zram-config
@@ -84,10 +110,10 @@ jobs:
           sed -i '/^mem/ s/.*/#&\nmem=10GiB/' /usr/bin/init-zram-swapping
           apt install -y $EXTRA_PACKAGES
           apt --fix-broken install -y
-
-          sed -i '/ConditionKernelVersion/d' /lib/systemd/system/pd-mapper.service
-
+          
           apt install -y ubuntu-desktop
+          apt --fix-broken install -y
+          apt upgrade -y
           apt --fix-broken install -y
           apt clean
           systemctl enable bluetooth
