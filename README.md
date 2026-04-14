@@ -114,8 +114,8 @@ If you prefer a graphical interface, you can use the Arkt-7 web tool at [arkt-7.
 *   **Kernel Boot Issues:** **Kernel 6.17** does not boot reliably on all devices, particularly those with **Samsung UFS** drives.
 	If screen stays black for more than 30 seconds, hold power button until tablet reboots. Try several times. If it consistently fails,
 	use **Kernel 6.14.11** which boots on every tablet.
-*   Files app: long-tap on folder opens context-menue but long-tap on background not -> use mouse for right-click or terminal to create new folders with `mkdir folder_name`.
-*   Screen sometimes does not turn on again after Suspense.
+*   **Files app:** long-tap on folder opens context-menue but long-tap on background not -> use mouse for right-click or terminal to create new folders with `mkdir folder_name`.
+*   **Suspend:** Screen sometimes does not turn on again after Suspend.
 ---
 
 ## Post-Installation
