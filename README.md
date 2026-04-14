@@ -16,11 +16,11 @@
 
 | File | Description | Author & Link |
 | :--- | :--- | :--- |
-| [V4-MODDED-TWRP-LINUX.img]() | To access the internal disk (+ much more) | [ArKT-7](https://github.com/ArKT-7/twrp_device_xiaomi_nabu/releases/tag/mod_linux) |
-| [efi.tar]() | Contains files to boot Linux | [Timofey](https://github.com/timoxa0) & TheMojoMan |
-| [setup_ubuntu.sh]() | Partition disk & Copy boot files | TheMojoMan |
-| [ubuntu-26.04-xiaomi-nabu.img.xz]() | Ubuntu root file system (COMPRESSED) | [Canonical](https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/beta/) & TheMojoMan |
-| [installer_bootmanager_NOSB.zip]() | Patches bootloader to boot LINUX (+ ANDROID + ...) | [rodriguezst](https://github.com/rodriguezst/nabu-dualboot-img) |
+| [V4-MODDED-TWRP-LINUX.img](https://github.com/TheMojoMan/xiaomi-nabu/releases/download/ubuntu-26.04-v1.0.0/V4-MODDED-TWRP-LINUX.img) | To access the internal disk (+ much more) | [ArKT-7](https://github.com/ArKT-7/twrp_device_xiaomi_nabu/releases/tag/mod_linux) |
+| [efi.tar](https://github.com/TheMojoMan/xiaomi-nabu/releases/download/ubuntu-26.04-v1.0.0/efi.tar) | Contains files to boot Linux | [Timofey](https://github.com/timoxa0) & TheMojoMan |
+| [setup_ubuntu.sh](https://github.com/TheMojoMan/xiaomi-nabu/releases/download/ubuntu-26.04-v1.0.0/setup_ubuntu.sh) | Partition disk & Copy boot files | TheMojoMan |
+| [ubuntu-26.04-xiaomi-nabu.img.xz](https://github.com/TheMojoMan/xiaomi-nabu/releases/download/ubuntu-26.04-v1.0.0/ubuntu-26.04-xiaomi-nabu.img.xz) | Ubuntu root file system (COMPRESSED) | [Canonical](https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/beta/) & TheMojoMan |
+| [installer_bootmanager_NOSB.zip](https://github.com/TheMojoMan/xiaomi-nabu/releases/download/ubuntu-26.04-v1.0.0/installer_bootmanager_NOSB.zip) | Patches bootloader to boot LINUX (+ ANDROID + ...) | [rodriguezst](https://github.com/rodriguezst/nabu-dualboot-img) |
 
 ### 📦 Important: Unpacking the Image
 The Ubuntu image is usually provided as a compressed `.xz` file. You **must** extract it before flashing to get the actual `.img` file.
