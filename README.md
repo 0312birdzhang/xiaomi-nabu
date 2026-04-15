@@ -157,6 +157,7 @@ After booting Ubuntu and doing the initial setup connect to the internet (if you
 **Using the Xiaomi pen**
 *  The pen should work without any further action.
 *  [Kernel 6.17 only] To activate charging of pen open terminal and run `sudo modprobe idtp9418`. Tip of pen should point to left.
+*  [Kernel 6.17 only] To make activation permanent run `echo idtp9418 | sudo tee /etc/modules-load.d/charge-stylus.conf`.
 *  [Kernel 6.17 only] To control charging state open Bluetooth settings, long-press one of the pen buttons until "Xiaomi Smart Pen" appears in Bluetooth settings.
    Connect pen. Now change to 'Energy' setting. Under 'Connected Devices' it should show charging state.
 ---
