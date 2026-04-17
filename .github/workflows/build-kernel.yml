@@ -10,7 +10,7 @@ on:
       patch_suffix:
         description: 'Suffix added to artifact names and kernel localversion when patches are applied (e.g., -UFS-patch)'
         required: false
-        default: ''
+        default: '-UFS-slowdown'
       cmdline:
         description: 'Kernel command line (root=... will be duplicated with "2" appended for second EFI)'
         required: false
