@@ -41,7 +41,8 @@ jobs:
             android-sdk-libsparse-utils \
             erofs-utils \
             jq \
-            bc
+            bc \
+            unzip
 
       - name: Setup QEMU
         run: |
@@ -55,11 +56,13 @@ jobs:
           wget -q "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-${VOID_VERSION}.tar.xz" \
             -O "build/downloads/void-aarch64-ROOTFS-${VOID_VERSION}.tar.xz"
 
-      - name: Download Kernel Artifact
+      - name: Download Kernel
         run: |
           mkdir -p build/kernel
-          wget -q "https://github.com/0312birdzhang/xiaomi-nabu/actions/runs/25145685034/artifacts/6722385045" \
-            -O build/kernel/xiaomi-nabu-linux-6.17.0-UFS-slowdown.tar
+          wget -q "https://github.com/0312birdzhang/xiaomi-nabu/releases/download/0.0.1/xiaomi-nabu-linux-6.17.0-UFS-slowdown.tar.zip" \
+            -O build/kernel/kernel.tar.zip
+          unzip -q build/kernel/kernel.tar.zip -d build/kernel/
+          rm build/kernel/kernel.tar.zip
 
       - name: Build Docker Builder Image
         run: |
@@ -97,10 +100,16 @@ jobs:
 
       - name: Install Kernel from Tarball
         run: |
-          sudo mount -o loop,rw build/system.img build/tmp-system
-          sudo tar -xf build/kernel/xiaomi-nabu-linux-6.17.0-UFS-slowdown.tar -C build/tmp-system/
-          sudo umount build/tmp-system
-          echo "Kernel installed"
+          KERNEL_TAR=$(find build/kernel -name "*.tar" 2>/dev/null | head -1)
+          if [ -n "$KERNEL_TAR" ]; then
+            sudo mount -o loop,rw build/system.img build/tmp-system
+            sudo tar -xf "$KERNEL_TAR" -C build/tmp-system/
+            sudo umount build/tmp-system
+            echo "Kernel installed from: $KERNEL_TAR"
+          else
+            echo "No kernel tarball found"
+            ls -la build/kernel/
+          fi
 
       - name: Create Sparse Image
         run: |
