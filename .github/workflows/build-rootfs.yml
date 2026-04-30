@@ -7,6 +7,10 @@ on:
         description: 'Void Linux RootFS Version'
         required: false
         default: '20250202'
+      kernel_version:
+        description: 'Kernel Version'
+        required: false
+        default: '6.17.0-UFS-slowdown'
 
 jobs:
   build-system:
@@ -28,11 +32,10 @@ jobs:
             curl \
             e2fsprogs \
             fakeroot \
-            img2simg \
+            android-sdk-libsparse-utils \
             erofs-utils \
             jq \
-            bc \
-            numfmt
+            bc
 
       - name: Setup QEMU
         run: |
@@ -45,6 +48,14 @@ jobs:
           mkdir -p build/downloads
           wget -q "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-${VOID_VERSION}.tar.xz" \
             -O "build/downloads/void-aarch64-ROOTFS-${VOID_VERSION}.tar.xz"
+
+      - name: Download Kernel Tarball
+        env:
+          KERNEL_VERSION: ${{ github.event.inputs.kernel_version }}
+        run: |
+          mkdir -p build/kernel
+          wget -q "https://github.com/TheMojoMan/xiaomi-nabu/releases/download/ubuntu-26.04-v1.0.0/xiaomi-nabu-linux-${KERNEL_VERSION}.tar" \
+            -O "build/kernel/kernel.tar"
 
       - name: Build Docker Builder Image
         run: |
@@ -80,6 +91,15 @@ jobs:
           sudo rm -f build/tmp-system/.dockerenv
           sudo umount build/tmp-system
 
+      - name: Install Kernel from Tarball
+        run: |
+          sudo mount -o loop,rw build/system.img build/tmp-system
+          sudo tar -xf build/kernel/kernel.tar -C build/tmp-system/
+          sudo umount build/tmp-system
+          echo "Kernel installed successfully"
+
+      - name: Create Sparse Image
+        run: |
           img2simg build/system.img build/output/system.img
           rm -f build/system.img
 
