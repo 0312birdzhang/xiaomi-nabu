@@ -11,7 +11,7 @@ RUN mkdir -p /tmp/nabu
 ARG USERNAME=nabu
 
 COPY ./rootfs-tools/userspace/base_setup.sh /tmp/nabu/
-RUN /tmp/nabu/base_setup.sh
+RUN chmod +x /tmp/nabu/base_setup.sh && /tmp/nabu/base_setup.sh
 
 FROM void-base
 
@@ -86,7 +86,7 @@ RUN sed -i 's/FileCreateMode 0640/FileCreateMode 0644/' /etc/rsyslog.conf
 RUN chmod +x /usr/local/bin/rootfs-*.sh
 
 COPY ./rootfs-tools/userspace/readonly_setup.sh /tmp/nabu/
-RUN /tmp/nabu/readonly_setup.sh
+RUN chmod +x /tmp/nabu/readonly_setup.sh && /tmp/nabu/readonly_setup.sh
 
 RUN find /usr/share/locale -maxdepth 1 -mindepth 1 ! -name en_US ! -name en -exec rm -rf {} + && \
     rm -rf /usr/share/man /usr/share/doc /usr/share/info && \
