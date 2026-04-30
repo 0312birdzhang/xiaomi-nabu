@@ -115,41 +115,9 @@ jobs:
           img2simg build/system.img build/output/system.img
           rm -f build/system.img
 
-      - name: Collect RootFS Profile
-        run: |
-          mkdir -p build/tmp-system
-          sudo mount -o loop,rw build/output/system.img build/tmp-system
-
-          DF_LINE=$(df -B1 build/tmp-system | tail -1)
-          USED_BYTES=$(echo "$DF_LINE" | awk '{print $3}')
-          TOTAL_BYTES=$(echo "$DF_LINE" | awk '{print $2}')
-          AVAIL_BYTES=$(echo "$DF_LINE" | awk '{print $4}')
-
-          FILE_COUNT=$(find build/tmp-system -xdev -type f | wc -l)
-          DIR_COUNT=$(find build/tmp-system -xdev -type d | wc -l)
-          SYMLINK_COUNT=$(find build/tmp-system -xdev -type l | wc -l)
-
-          SPARSE_SIZE=$(stat -c%s build/output/system.img)
-
-          cat > build/output/rootfs-profile.json << EOF
-          {
-            "image_size_used_bytes": ${USED_BYTES},
-            "image_size_total_bytes": ${TOTAL_BYTES},
-            "image_size_avail_bytes": ${AVAIL_BYTES},
-            "image_size_sparse_bytes": ${SPARSE_SIZE},
-            "file_count": ${FILE_COUNT},
-            "dir_count": ${DIR_COUNT},
-            "symlink_count": ${SYMLINK_COUNT}
-          }
-          EOF
-
-          sudo umount build/tmp-system
-
       - name: Upload System Images
         uses: actions/upload-artifact@v5
         with:
           name: nabu-system-images
-          path: |
-            build/output/system.img
-            build/output/rootfs-profile.json
+          path: build/output/system.img
           if-no-files-found: error
