@@ -39,7 +39,6 @@ jobs:
             e2fsprogs \
             fakeroot \
             android-sdk-libsparse-utils \
-            erofs-utils \
             jq \
             bc \
             unzip
@@ -116,21 +115,6 @@ jobs:
           img2simg build/system.img build/output/system.img
           rm -f build/system.img
 
-      - name: Build EROFS Image
-        run: |
-          mkdir -p build/tmp-erofs
-          sudo mount -o loop,rw build/output/system.img build/tmp-erofs
-
-          mkfs.erofs \
-            -zlz4hc,12 \
-            -C65536 \
-            -T0 \
-            --all-root \
-            build/output/system.erofs.img \
-            build/tmp-erofs
-
-          sudo umount build/tmp-erofs
-
       - name: Collect RootFS Profile
         run: |
           mkdir -p build/tmp-system
@@ -146,7 +130,6 @@ jobs:
           SYMLINK_COUNT=$(find build/tmp-system -xdev -type l | wc -l)
 
           SPARSE_SIZE=$(stat -c%s build/output/system.img)
-          EROFS_SIZE=$(stat -c%s build/output/system.erofs.img)
 
           cat > build/output/rootfs-profile.json << EOF
           {
@@ -154,7 +137,6 @@ jobs:
             "image_size_total_bytes": ${TOTAL_BYTES},
             "image_size_avail_bytes": ${AVAIL_BYTES},
             "image_size_sparse_bytes": ${SPARSE_SIZE},
-            "image_size_erofs_bytes": ${EROFS_SIZE},
             "file_count": ${FILE_COUNT},
             "dir_count": ${DIR_COUNT},
             "symlink_count": ${SYMLINK_COUNT}
@@ -169,6 +151,5 @@ jobs:
           name: nabu-system-images
           path: |
             build/output/system.img
-            build/output/system.erofs.img
             build/output/rootfs-profile.json
           if-no-files-found: error
