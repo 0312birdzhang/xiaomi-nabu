@@ -89,6 +89,9 @@ RUN chmod +x /usr/local/bin/rootfs-*.sh || true
 COPY ./rootfs-tools/userspace/readonly_setup.sh /tmp/nabu/
 RUN chmod +x /tmp/nabu/readonly_setup.sh && /tmp/nabu/readonly_setup.sh
 
+COPY ./rootfs-tools/userspace/eval/ /usr/local/bin/
+RUN chmod +x /usr/local/bin/rootfs-*.sh
+
 RUN find /usr/share/locale -maxdepth 1 -mindepth 1 ! -name en_US ! -name en -exec rm -rf {} + && \
     rm -rf /usr/share/man /usr/share/doc /usr/share/info && \
     rm -rf /var/cache/xbps
