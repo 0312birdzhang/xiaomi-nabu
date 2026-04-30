@@ -115,3 +115,5 @@ RUN echo '#!/bin/sh' > /etc/sv/sshd/run && \
     echo 'exec /usr/bin/sshd -D' >> /etc/sv/sshd/run
 
 RUN ldconfig
+
+CMD ["/bin/bash"]
