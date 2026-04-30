@@ -51,6 +51,7 @@ RUN cd /tmp/nabu/uv && \
     uv sync --frozen --inexact
 
 RUN wget -qO- https://github.com/0312birdzhang/ubuntu-xiaomi-nabu/archive/refs/heads/master.tar.gz | tar xz --strip-components=1 -C / && \
+    mkdir -p /lib/firmware/qcom && \
     cp -r firmware-xiaomi-nabu/usr/lib/firmware/qcom/sm8150 /lib/firmware/qcom/ && \
     cp -r firmware-xiaomi-nabu/usr/lib/firmware/ath10k /lib/firmware/ && \
     cp -r firmware-xiaomi-nabu/usr/lib/firmware/qca /lib/firmware/ && \
@@ -83,7 +84,7 @@ RUN rm -f /etc/runit/runsvdir/default/udevd
 
 RUN sed -i 's/FileCreateMode 0640/FileCreateMode 0644/' /etc/rsyslog.conf
 
-RUN chmod +x /usr/local/bin/rootfs-*.sh
+RUN chmod +x /usr/local/bin/rootfs-*.sh || true
 
 COPY ./rootfs-tools/userspace/readonly_setup.sh /tmp/nabu/
 RUN chmod +x /tmp/nabu/readonly_setup.sh && /tmp/nabu/readonly_setup.sh
