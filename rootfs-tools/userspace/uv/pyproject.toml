@@ -1,0 +1,6 @@
+[project]
+name = "nabu"
+version = "0.1.0"
+description = "vamOS-inspired rootfs for Xiaomi Pad 5 (nabu)"
+requires-python = ">=3.12"
+dependencies = []

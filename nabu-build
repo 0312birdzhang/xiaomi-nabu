@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -e
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd "$(dirname "$SOURCE")" >/dev/null && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$(cd "$(dirname "$SOURCE")/.." >/dev/null && pwd)"
+
+setup() {
+  git -C "$DIR" submodule update --init --depth 1
+  if [ "$(uname)" = "Linux" ]; then
+    UDEV_RULES="/etc/udev/rules.d/99-qualcomm-edl.rules"
+    if [ ! -f "$UDEV_RULES" ]; then
+      echo "Setting up udev rules for Qualcomm EDL..."
+      sudo tee "$UDEV_RULES" > /dev/null <<'EOF'
+SUBSYSTEM=="usb", ATTR{idVendor}=="05c6", ATTR{idProduct}=="9008", MODE="0666"
+SUBSYSTEM=="usb", ATTR{idVendor}=="3801", ATTR{idProduct}=="9008", MODE="0666"
+EOF
+      sudo udevadm trigger --attr-match=subsystem=usb
+    fi
+  fi
+}
+
+case "${1:-}" in
+  setup)    setup ;;
+  build)
+    case "${2:-}" in
+      kernel)  echo "Kernel build not yet implemented for nabu" ;;
+      system)  exec "$DIR/rootfs-tools/build/build_system.sh" ;;
+      *)       echo "Usage: nabu-build build <kernel|system>"; exit 1 ;;
+    esac ;;
+  flash)
+    case "${2:-}" in
+      system)   echo "Flash system not yet implemented" ;;
+      kernel)   echo "Flash kernel not yet implemented" ;;
+      *)        echo "Usage: nabu-build flash <kernel|system>"; exit 1 ;;
+    esac ;;
+  *)
+    echo "Usage: nabu-build <setup|build|flash>"
+    echo ""
+    echo "  setup              Initialize submodules and udev rules"
+    echo "  build system       Build the system image (output/system.img)"
+    echo "  flash system       Flash system.img to device via EDL"
+    exit 1 ;;
+esac

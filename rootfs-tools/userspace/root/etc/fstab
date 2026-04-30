@@ -1,0 +1,11 @@
+# Rootfs with read-only root and persistent data
+UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa /               ext4    ro,errors=remount-ro 0 1
+UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb /data           ext4    defaults            0 2
+UUID=cccccccc-cccc-cccc-cccc-cccccccccccc /config          ext4    defaults            0 2
+UUID=dddddddd-dddd-dddd-dddd-dddddddddddd /persist         ext4    defaults            0 2
+
+# EFI
+UUID=eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee /boot/efi         vfat    defaults            0 2
+
+# Swap
+UUID=ffffffff-ffff-ffff-ffff-ffffffffffff none            swap    sw                 0 0

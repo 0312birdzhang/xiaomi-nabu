@@ -1,160 +1,141 @@
-name: Build Ubuntu image for Xiaomi Pad 5 (nabu)
+name: Build vamOS-style system image for Xiaomi Pad 5 (nabu)
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Ubuntu Version'
-        required: true
-        default: '26.04'
-      extra_packages:
-        description: 'Additional packages to install'
+      void_version:
+        description: 'Void Linux RootFS Version'
         required: false
-        default: ''
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  
+        default: '20250202'
+
 jobs:
-  build:
+  build-system:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
+        with:
+          submodules: true
 
       - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget xz-utils coreutils curl e2fsprogs
+          sudo apt-get install -y \
+            docker.io \
+            qemu-user-static \
+            xz-utils \
+            coreutils \
+            curl \
+            e2fsprogs \
+            fakeroot \
+            img2simg \
+            erofs-utils \
+            jq \
+            bc \
+            numfmt
 
-      - name: Create RootFS Image
+      - name: Setup QEMU
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          EXTRA_PACKAGES="${{ github.event.inputs.extra_packages }}"
-          
-          # Create and format image
-          truncate -s 6G rootfs.img
-          mkfs.ext4 rootfs.img
-          mkdir -p rootdir
-          sudo mount -o loop rootfs.img rootdir
+          docker run --rm --privileged tonistiigi/binfmt --install all
 
-          # Download and Extract Ubuntu Base
-          if [ "$VERSION" = "26.04" ]; then
-            URL="https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/beta/ubuntu-base-26.04-beta-base-arm64.tar.gz"
-          else
-            URL="https://cdimage.ubuntu.com/ubuntu-base/releases/$VERSION/release/ubuntu-base-$VERSION-base-arm64.tar.gz"
-          fi
-          
-          wget -q $URL -O ubuntu-base.tar.gz
-          sudo tar xzvf ubuntu-base.tar.gz -C rootdir
-
-          # Setup Config Files
-          sudo mkdir -p rootdir/var/lib/gdm3/.config
-          sudo mkdir -p rootdir/etc/skel/.config/dconf
-          sudo cp root-setup-files/monitors.xml rootdir/var/lib/gdm3/.config/monitors.xml
-          sudo cp root-setup-files/monitors.xml rootdir/etc/skel/.config/monitors.xml
-          sudo cp root-setup-files/console-setup rootdir/etc/default/console-setup
-          sudo cp root-setup-files/user rootdir/etc/skel/.config/dconf/
-          sudo cp root-setup-files/bash_aliases rootdir/etc/skel/.bash_aliases
-
-          # Bind Mounts
-          sudo mount --bind /dev rootdir/dev
-          sudo mount --bind /dev/pts rootdir/dev/pts
-          sudo mount --bind /proc rootdir/proc
-          sudo mount --bind /sys rootdir/sys
-
-          # Network and Hostname
-          echo "nameserver 1.1.1.1" | sudo tee rootdir/etc/resolv.conf
-          echo "nabu" | sudo tee rootdir/etc/hostname
-          echo -e "127.0.0.1 localhost\n127.0.1.1 nabu" | sudo tee rootdir/etc/hosts
-
-          # Chroot execution
-          sudo chroot rootdir /bin/bash <<EOF
-          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH
-          export DEBIAN_FRONTEND=noninteractive
-          export LANG=C.UTF-8
-          export LC_ALL=C.UTF-8
-          
-          # 1. Update the lists
-          apt update || true 
-          
-          # 2. Install certificates and gnupg first
-          apt install -y locales ca-certificates gnupg
-          
-          # 3. Generate en_US.UTF-8
-          echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-          locale-gen en_US.UTF-8
-          update-locale LANG=en_US.UTF-8
-          
-          # 4. Switch the current session to the new locale
-          export LANG=en_US.UTF-8
-          unset LC_ALL  # Allow LC_ALL to be determined by LANG
-          EOF
-          
-          sudo cp root-setup-files/xiaomi-nabu.sources rootdir/etc/apt/sources.list.d/xiaomi-nabu.sources
-          sudo cp root-setup-files/themojoman.gpg rootdir/etc/apt/keyrings/themojoman.gpg
-          
-          sudo chroot rootdir /bin/bash <<EOF
-          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\$PATH
-          export DEBIAN_FRONTEND=noninteractive
-          export LANG=en_US.UTF-8
-          unset LC_ALL
-          
-          apt update
-          apt install -y bash-completion sudo ssh nano micro curl alsa-ucm-conf
-          apt install -y rmtfs protection-domain-mapper tqftpserv
-          apt install -y systemd-boot-efi systemd-ukify 
-          apt install -y xiaomi-nabu-alsa xiaomi-nabu-firmware
-          apt install -y xiaomi-nabu-linux-6.14
-          apt install -y xiaomi-nabu-linux-6.17
-          apt install -y zram-config
-          apt install -y $EXTRA_PACKAGES
-          apt --fix-broken install -y
-          
-          apt install -y ubuntu-desktop
-          apt --fix-broken install -y
-          apt upgrade -y
-          apt --fix-broken install -y
-          sed -i '/ConditionKernelVersion/d' /lib/systemd/system/pd-mapper.service
-          sed -i '/^totalmem/ s/^/#/' /usr/bin/init-zram-swapping
-          sed -i '/^mem/ s/.*/#&\nmem=10GiB/' /usr/bin/init-zram-swapping
-          apt clean
-          systemctl enable bluetooth
-          EOF
-
-          # fstab (keeping your commented lines)
-          echo "PARTLABEL=linux / ext4 errors=remount-ro,x-systemd.growfs 0 1
-          #PARTLABEL=esp /boot/efi vfat umask=0077 0 1
-          #PARTLABEL=data /media/data ext4 defaults 0 2" | sudo tee rootdir/etc/fstab
-
-          # Copy EFI files out of the chroot before unmounting
-          sudo cp rootdir/boot/*.efi . || echo "No EFI files found"
-
-          # Cleanup
-          sudo umount rootdir/sys
-          sudo umount rootdir/proc
-          sudo umount rootdir/dev/pts
-          sudo umount rootdir/dev
-          sudo umount rootdir
-
-      - name: Compress Image
-        id: compress
+      - name: Download Void RootFS
+        env:
+          VOID_VERSION: ${{ github.event.inputs.void_version }}
         run: |
-          VERSION="${{ github.event.inputs.version }}"
-          FILENAME="ubuntu-${VERSION}-xiaomi-nabu.img.xz"
-          xz -6 rootfs.img
-          mv rootfs.img.xz "$FILENAME"
-          echo "img_name=$FILENAME" >> $GITHUB_OUTPUT
+          mkdir -p build/downloads
+          wget -q "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-${VOID_VERSION}.tar.xz" \
+            -O "build/downloads/void-aarch64-ROOTFS-${VOID_VERSION}.tar.xz"
 
-      - name: Upload RootFS image
+      - name: Build Docker Builder Image
+        run: |
+          docker build -f rootfs-tools/build/Dockerfile.builder -t nabu-builder .
+
+      - name: Build RootFS Docker Image
+        run: |
+          docker buildx build -f rootfs-tools/build/Dockerfile \
+            --platform=linux/arm64 \
+            --tag nabu-rootfs:latest \
+            --build-arg VOID_ROOTFS="build/downloads/void-aarch64-ROOTFS-20250202.tar.xz" \
+            --build-arg UNAME="runner" \
+            --build-arg UID="1001" \
+            --build-arg GID="121" \
+            --load \
+            .
+
+      - name: Export RootFS from Container
+        run: |
+          CONTAINER_ID=$(docker create nabu-rootfs:latest)
+          docker export "$CONTAINER_ID" -o build/rootfs.tar
+          docker rm "$CONTAINER_ID"
+
+      - name: Create System Image
+        run: |
+          mkdir -p build/tmp-system build/output
+
+          fallocate -l 4G build/system.img
+          mkfs.ext4 -L "nabu-rootfs" build/system.img
+
+          sudo mount -o loop,rw build/system.img build/tmp-system
+          sudo tar -xf build/rootfs.tar -C build/tmp-system
+          sudo rm -f build/tmp-system/.dockerenv
+          sudo umount build/tmp-system
+
+          img2simg build/system.img build/output/system.img
+          rm -f build/system.img
+
+      - name: Build EROFS Image
+        run: |
+          mkdir -p build/tmp-erofs
+          sudo mount -o loop,rw build/output/system.img build/tmp-erofs
+
+          mkfs.erofs \
+            -zlz4hc,12 \
+            -C65536 \
+            -T0 \
+            --all-root \
+            build/output/system.erofs.img \
+            build/tmp-erofs
+
+          sudo umount build/tmp-erofs
+
+      - name: Collect RootFS Profile
+        run: |
+          mkdir -p build/tmp-system
+          sudo mount -o loop,rw build/output/system.img build/tmp-system
+
+          DF_LINE=$(df -B1 build/tmp-system | tail -1)
+          USED_BYTES=$(echo "$DF_LINE" | awk '{print $3}')
+          TOTAL_BYTES=$(echo "$DF_LINE" | awk '{print $2}')
+          AVAIL_BYTES=$(echo "$DF_LINE" | awk '{print $4}')
+
+          FILE_COUNT=$(find build/tmp-system -xdev -type f | wc -l)
+          DIR_COUNT=$(find build/tmp-system -xdev -type d | wc -l)
+          SYMLINK_COUNT=$(find build/tmp-system -xdev -type l | wc -l)
+
+          SPARSE_SIZE=$(stat -c%s build/output/system.img)
+          EROFS_SIZE=$(stat -c%s build/output/system.erofs.img)
+
+          cat > build/output/rootfs-profile.json << EOF
+          {
+            "image_size_used_bytes": ${USED_BYTES},
+            "image_size_total_bytes": ${TOTAL_BYTES},
+            "image_size_avail_bytes": ${AVAIL_BYTES},
+            "image_size_sparse_bytes": ${SPARSE_SIZE},
+            "image_size_erofs_bytes": ${EROFS_SIZE},
+            "file_count": ${FILE_COUNT},
+            "dir_count": ${DIR_COUNT},
+            "symlink_count": ${SYMLINK_COUNT}
+          }
+          EOF
+
+          sudo umount build/tmp-system
+
+      - name: Upload System Images
         uses: actions/upload-artifact@v5
         with:
-          name: ${{ steps.compress.outputs.img_name }}
-          path: ${{ steps.compress.outputs.img_name }}
+          name: nabu-system-images
+          path: |
+            build/output/system.img
+            build/output/system.erofs.img
+            build/output/rootfs-profile.json
           if-no-files-found: error
-
-      - name: Upload EFI Binaries
-        uses: actions/upload-artifact@v5
-        with:
-          name: efi-files
-          path: ./*.efi
-          if-no-files-found: warn
